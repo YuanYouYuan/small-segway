@@ -22,6 +22,8 @@ void setup()
 
 void loop()
 {
+  speed = 250;
+  go_forward();
 	if(Serial.available())
 	{
 		int key = Serial.read();

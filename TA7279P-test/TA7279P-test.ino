@@ -14,6 +14,10 @@ void setup()
 
 void loop()
 {
+	// digitalWrite(motor_A_1, HIGH);
+	// digitalWrite(motor_B_1, HIGH);
+	// digitalWrite(motor_A_2, LOW);
+	// digitalWrite(motor_B_2, LOW);
 	while(speed <= 255)
 	{
 		speed += 5;

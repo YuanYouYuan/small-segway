@@ -1,18 +1,16 @@
 #include "CurieIMU.h"
 
-float kp = 4;
-float ki = 0.1;
-float kd = 0;
+float kp = 24;
+float ki = 0.05;
+float kd = 15;
 const float K = 0.95;
 const int angle_list_number = 5;
 const int error_list_number = 10;
 int speed = 0;
-const int motor_A_enable  = 5;
-const int motor_B_enable  = 6;
-const int motor_A_output1 = 7;
-const int motor_A_output2 = 8;
-const int motor_B_output1 = 9;
-const int motor_B_output2 = 10;
+const int motor_A_1 = 3;
+const int motor_A_2 = 5;
+const int motor_B_1 = 6;
+const int motor_B_2 = 9;
 float time, time_pre, time_step;
 float gyro_angle = 0;
 float acce_angle = 0;
@@ -29,12 +27,11 @@ void setup()
 		angle_list[i] = 0.0;
 	for(int i = 0; i < error_list_number; i++)
 		error_list[i] = 0.0;
-	pinMode(motor_A_enable , OUTPUT);
-	pinMode(motor_B_enable , OUTPUT);
-	pinMode(motor_A_output1, OUTPUT);
-	pinMode(motor_A_output2, OUTPUT);
-	pinMode(motor_B_output1, OUTPUT);
-	pinMode(motor_B_output2, OUTPUT);
+	pinMode(motor_A_1, OUTPUT);
+	pinMode(motor_A_2, OUTPUT);
+	pinMode(motor_B_1, OUTPUT);
+	pinMode(motor_B_2, OUTPUT);
+	pinMode(13, OUTPUT);
 
 	Serial.begin(9600);
 	Serial.println("Start!!!");
@@ -51,35 +48,46 @@ void setup()
 	while((millis()-time2) < 2000)
 		offset = get_angle();
 	adjust_timer = millis();
+	digitalWrite(13, HIGH);
 }
 
 void loop()
 {
-	balance(PID_feedback(get_angle()));
-	adjusting();
-	Serial.println(speed);
-	//balance(speed);
-	//Serial.println(get_angle());
+	//balance(PID_feedback(get_angle()));
+	//adjusting();
+	float error = get_angle();
+	float feedback = PID_feedback(error);
+	if(abs(error) > 70)
+	{
+		while(true)
+		{
+			analogWrite(motor_A_1, 0);
+			digitalWrite(motor_A_2, LOW);
+			analogWrite(motor_B_1, 0);
+			digitalWrite(motor_B_2, LOW);
+			Serial.println("Stop!!!");
+		}
+	}
+	balance(feedback);
 }
 
-void go_forward()
+void balance(float feedback)
 {
-	analogWrite (motor_A_enable , speed);
-	analogWrite (motor_B_enable , speed);
-	digitalWrite(motor_A_output1, HIGH );
-	digitalWrite(motor_A_output2, LOW  );
-	digitalWrite(motor_B_output1, HIGH );
-	digitalWrite(motor_B_output2, LOW  );
-}
-
-void go_backward()
-{
-	analogWrite (motor_A_enable , speed);
-	analogWrite (motor_B_enable , speed);
-	digitalWrite(motor_A_output1, LOW  );
-	digitalWrite(motor_A_output2, HIGH );
-	digitalWrite(motor_B_output1, LOW  );
-	digitalWrite(motor_B_output2, HIGH );
+	speed = int(feedback);
+	if(speed < 0)
+	{
+		analogWrite(motor_A_1, abs(speed));
+		analogWrite(motor_B_1, abs(speed));
+		digitalWrite(motor_A_2, LOW);
+		digitalWrite(motor_B_2, LOW);
+	}
+	else
+	{
+		digitalWrite(motor_A_1, LOW);
+		digitalWrite(motor_B_1, LOW);
+		analogWrite(motor_A_2, abs(speed));
+		analogWrite(motor_B_2, abs(speed));
+	}
 }
 
 float get_angle()
@@ -136,16 +144,20 @@ float PID_feedback(float error)
 	float i_term = ki * sum_error;
 	float d_term = kd * diff_error;
 	float feedback = p_term + i_term + d_term;
-	//Serial.print("P term: ");
-	//Serial.print(p_term);
-	//Serial.print("\tI term: ");
-	//Serial.print(i_term);
-	//Serial.print("\tD term: ");
-	//Serial.print(d_term);
-	//Serial.print("\tError: ");
-	//Serial.print(error);
-	//Serial.print("\tFeedback: ");
-	//Serial.println(feedback);
+	if(feedback >= 255)
+		feedback = 255;
+	else if(feedback <= -255)
+		feedback = -255;
+	// Serial.print("P_term: ");
+	// Serial.print(p_term);
+	// Serial.print("\tI_term: ");
+	// Serial.print(i_term);
+	// Serial.print("\tD_term: ");
+	// Serial.print(d_term);
+	// Serial.print("\tError: ");
+	// Serial.print(error);
+	// Serial.print("\tFeedback: ");
+	// Serial.println(feedback);
 	return feedback;
 }
 
@@ -170,13 +182,4 @@ void adjusting()
 	Serial.print("\tkp: ");
 	Serial.println(kp);
 
-}
-
-void balance(float feedback)
-{
-	speed = int(abs(feedback));
-	if(feedback < 0)
-		go_forward();
-	else
-		go_backward();
 }
